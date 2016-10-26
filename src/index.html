@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Inventory</title>
+  <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.css">
+  <script type="text/javascript" src="https://cdn.rawgit.com/lhorie/mithril.js/rewrite/mithril.js"></script>
+  <style type="text/css">
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: url(assets/background.jpg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+      padding-top: 50px;
+    }
+
+    .header {
+      background: #1f1f1f linear-gradient(
+        to bottom, 
+        rgba(255, 255, 255, 0.0) 0%,
+        rgba(255, 255, 255, 0.08) 100%
+      );
+      box-shadow: 0 0 0 3px rgba(0,0,0,.2);
+      height: 50px;
+      left: 0;
+      padding: 5px 15px;
+      position: fixed;
+      right: 0;
+      top: 0;
+      z-index: 20;
+    }
+
+    .app {
+      position: relative;
+      max-width: 1175px;
+      margin: auto;
+    }
+
+    .content {
+      background: rgba(255,255,255,0.5);
+      box-shadow: 0 0 80px 0px rgba(0,0,0,.2);
+      padding: 0 20px;
+    }
+
+    .search {
+      background: #333;
+      border: 1px solid #444;
+      height: 40px;
+      width: 50%;
+      color: #fff;
+      font-size: 18px;
+      line-height: 18px;
+      padding: 7px 15px 3px;
+      border-radius: 2px;
+      opacity: .75;
+      transition: all 0.5s ease;
+      box-shadow: inset 0 0 0 0px rgba(0,0,0,.2);
+      outline: none;
+    }
+
+    .search:focus {
+      opacity: 1;
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.2);
+    }
+
+    .filters {
+      background: #1f1f1f;
+      padding: 5px 15px;
+      /*position: fixed;*/
+      z-index: 10;
+      top: 50px;
+      left: 0;
+      right: 0;
+    }
+
+    .filters:empty {
+      display: none;
+    }
+
+    .filter {
+      background: #333;
+      line-height: 26px;
+      font-size: 14px;
+      display: inline-block;
+      border-radius: 2px;
+      padding: 0 10px;
+      margin-right: 5px;
+      border: none;
+      color: #fff;
+      outline: none;
+    }
+
+    .filter:hover {
+      background: #444;
+    }
+
+    .cards {
+      padding: 10px 0;
+    }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+      overflow: hidden;
+      margin: 0 2px;
+      height: 310px;
+      width: 223px;
+
+      transition: transform 1s;
+      transform-style: preserve-3d;
+      transform-origin: right center;
+      perspective: 800px;
+    }
+
+    .card.flipped {
+      /*transform: rotateY(180deg);*/
+      transform: translateX( -100% ) rotateY( -180deg );
+    }
+
+    .card > div {
+      backface-visibility: hidden;
+      position: absolute;
+      border-radius: 14px;
+      background: #333;
+      color: #fff;
+      width: 100%;
+      height: 100%;
+    }
+
+    /*.card .front {
+      transform: rotateY(0deg);
+    }*/
+
+    .card .back {
+      transform: rotateY( 180deg );
+    }
+
+    .card.foil .front:after {
+      content: "";
+      position: absolute;
+      top: -110%;
+      left: -210%;
+      width: 200%;
+      height: 200%;
+      opacity: 0;
+      transform: rotate(30deg);
+      
+      background: rgba(255, 255, 255, 0.13);
+      background: linear-gradient(
+        to right, 
+        rgba(255, 255, 255, 0.0) 0%,
+        rgba(255, 255, 255, 0.13) 77%,
+        rgba(255, 255, 255, 0.5) 92%,
+        rgba(255, 255, 255, 0.0) 100%
+      );
+
+      transition-property: left, top, opacity;
+      transition-duration: 0.7s, 0.7s, 0.15s;
+      transition-timing-function: ease;
+    }
+
+    .card.foil:hover .front:after {
+      opacity: 1;
+      top: -30%;
+      left: -30%;
+    }
+  </style>
+</head>
+<body>
+</body>
+<script type="text/javascript">
+'use strict';
+
+(function(document) {
+  function costs(str) {
+    return str.replace('blue', '{u}')
+      .replace('black', '{b}')
+      .replace('red', '{r}')
+      .replace('white', '{w}');
+  }
+
+  var keydown = m.prop();
+  document.onkeydown = function(evt) {
+    keydown(evt || window.event);
+  };
+
+  var Card = {
+    oninit: function(vnode) {
+      vnode.state.flipped = m.prop(false);
+    },
+    view: function(vnode) {
+      return m('div.card', {
+        class: [
+          vnode.attrs.printings ? vnode.attrs.printings.join(' ') : '',
+          vnode.attrs.colors ? vnode.attrs.colors.join(' ') : '',
+          vnode.attrs.rarity,
+          vnode.attrs.foil,
+          vnode.state.flipped() ? 'flipped' : ''
+        ].map(function(val) {
+          if (typeof val === 'string') {
+            return val.toLowerCase();
+          }
+          return val;
+        }).join(' '),
+        onclick: function() {
+          console.log('clicked?')
+          vnode.state.flipped(!vnode.state.flipped());
+        },
+      }, [
+        m('.front', {
+          style: {
+            backgroundImage: 'url(' + vnode.attrs.imageURL + ')',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'contain',
+          }
+        }),
+        m('.back', vnode.attrs.count),
+      ]);
+    }
+  };
+
+  var Filters = {
+    view: function(vnode) {
+      return [
+        m('div.filters', {
+          style: {
+            position: 'fixed',
+          }
+        }, vnode.attrs.filters().map(function(filter){
+          return m('button.filter', {
+            onclick: function() {
+              vnode.attrs.filters(vnode.attrs.filters()
+                .filter(function(x){
+                  return  x !== filter;
+                }));
+            }
+          }, filter);
+        })),
+
+        m('div.filters', vnode.attrs.filters().map(function(filter){
+          return m('button.filter', filter);
+        })),
+      ];
+    }
+  };
+
+  var Layout = {
+    view: function(vnode) {
+      return m('.app', [
+        m('.header', m('div', [
+          vnode.attrs.header,
+          m('img', { 
+            src: 'assets/logo.png', 
+            style: { 
+              height: '40px',
+              float: 'right'
+            } 
+          })
+        ])),
+        m('.content', [vnode.attrs.content]),
+        m('.footer', [vnode.attrs.footer])
+      ]);
+    }
+  };
+
+  var Home = {
+    oninit: function(vnode){
+      vnode.state.cards = m.prop(cards);
+      vnode.state.search = m.prop('');
+      vnode.state.filters = m.prop([]);
+
+      keydown.run(function(evt) {
+        if ((evt.key == "Escape" || evt.key == "Esc") || evt.keyCode == 27) {
+          vnode.state.filters(vnode.state.filters().splice(0,-1));
+          m.redraw();
+        }
+      });
+    },
+    view: function(vnode){
+      var cards = vnode.state.cards().filter(function(card) {
+        var filters = vnode.state.filters();
+
+        if (vnode.state.search() !== '')
+          filters = filters.concat([vnode.state.search()]);
+
+        if (filters.length === 0)
+          return true;
+
+        return (function(str) {
+          return filters.map(function(filter){
+            return str.indexOf(costs(filter)) > -1; 
+          }).indexOf(false) === -1;
+        })(JSON.stringify(card).toLowerCase());
+      });
+
+      return m(Layout, {
+        header: [
+          m('input.search', {
+            oninput: m.withAttr("value", vnode.state.search),
+            onkeypress: function(evt) {
+              if (vnode.state.search().replace(' ', '').length && 
+                (evt.key === 'Enter' || evt.code === 'Enter'))
+                vnode.state.filters(vnode.state.filters().concat([
+                  vnode.state.search()]));
+            }
+          }),
+        ],
+        content: [
+          m(Filters, { filters: vnode.state.filters }),
+          m('.cards', cards.map(function(attrs) {
+            return m(Card, attrs);
+          })),
+        ]
+      });
+      
+    }
+  };
+
+  // {{cards}}
+
+  m.route(document.body, '/', {
+    '/': Home,
+  });
+
+})(window.document);
+</script>
+</html>
